@@ -1,0 +1,38 @@
+---
+# --------------------------------------------------------------------------- #
+# "OrdererOrgs" - Definition of organizations managing orderer nodes
+# --------------------------------------------------------------------------- #
+OrdererOrgs:
+  # ---------------------------------------------------------------------------
+  # Orderer
+  # ---------------------------------------------------------------------------
+{% set orderer_domain = fabric_orderer_domain %}
+  - Name: Orderer1
+    Domain: {{ orderer_domain }}
+    Template:
+      Count: {{ fabric_num_orderer|int }}
+    # ---------------------------------------------------------------------------
+    # "Specs" - See PeerOrgs below for complete description
+    # ---------------------------------------------------------------------------
+{# This spec will create all orderers in crypto-config #}
+
+    Specs:
+{% for i in range(fabric_num_orderer|int) %}
+      - Hostname: orderer{{ loop.index0 }}
+{% endfor %}
+
+# ---------------------------------------------------------------------------
+# "PeerOrgs" - Definition of organizations managing peer nodes
+# ---------------------------------------------------------------------------
+PeerOrgs:
+{% for i in range(fabric_num_orgs|int) %}
+  # ---------------------------------------------------------------------------
+  # Org{{ loop.index }} See full specification in hyperledger fabric documentation
+  # ---------------------------------------------------------------------------
+  - Name: Org{{ loop.index }}
+    Domain: org{{ loop.index }}
+    Template:
+      Count: {{ fabric_peers_per_org|int }}
+    Users:
+      Count: 1
+{% endfor %}

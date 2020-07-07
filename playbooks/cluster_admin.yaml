@@ -1,0 +1,32 @@
+# Ansible Playbook to install Kubernetes Dashboard on kubernetes
+# Note: Call with -i inventory/cluster/hosts.ini
+---
+# Add kubectl command, kube-dashboard and admin_user
+- hosts: cluster-setup
+  tasks:
+    - name: Add Alias for Kubctl command
+      copy:
+        dest: "{{ ansible_env.HOME }}/.bash_aliases"
+        content: |
+          alias kubectl="{{ lookup('env', 'INVENTORY_DIR_PATH') }}/cluster/artifacts/kubectl --kubeconfig={{ lookup('env', 'INVENTORY_DIR_PATH') }}/cluster/artifacts/admin.conf"
+          alias k=kubectl
+          alias ks="k -n kube-system"
+          alias kget="k get -o wide --all-namespaces"
+
+    - name: Set execute permission for kubectl binary
+      shell: |
+        chmod +x {{ lookup('env', 'INVENTORY_DIR_PATH') }}/cluster/artifacts/kubectl
+
+    - name: Add Admin user for Kubernetes Dashboard
+      shell: |
+        {{ lookup('env', 'INVENTORY_DIR_PATH') }}/cluster/artifacts/kubectl --kubeconfig={{ lookup('env', 'INVENTORY_DIR_PATH') }}/cluster/artifacts/admin.conf apply -f {{ lookup('env', 'INVENTORY_DIR_PATH') }}/cluster/admin_user.yaml
+
+    - name: Print Dashboard Access Infromation
+      debug:
+        msg:
+          - "######################################################## INFROMATION ########################################################"
+          - "#### Activate kubectl command as bash alias, Run:      source {{ ansible_env.HOME }}/.bash_aliases                       ####"
+          - "#### Access Kubernetes Dashboard at :-   https://{{ hostvars[groups['kube-lb'][0]]['ansible_host'] }}:8443                                                       ####"
+          - "#### Get Access Token for Authentication with following command :-                                                       ####"
+          - "####   kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}')  ####"
+          - "#############################################################################################################################"

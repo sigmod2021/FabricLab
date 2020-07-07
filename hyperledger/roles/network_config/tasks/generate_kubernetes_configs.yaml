@@ -1,0 +1,46 @@
+---
+- name: Create kubernetes templates directory
+  file:
+    path: "{{ templates_dir }}"
+    state: directory
+
+- name: Generate Kubernetes configuration templates
+  template: src={{ item.src }} dest={{ templates_dir }}/{{ item.dest }} mode=0644
+  with_items:
+    - { src: "fabric_template_peer_org_namespace.yaml.j2", dest: "fabric_template_peer_org_namespace.yaml" }
+    - { src: "fabric_template_orderer_org_namespace.yaml.j2", dest: "fabric_template_orderer_org_namespace.yaml" }
+    - { src: "fabric_template_pod_ca.yaml.j2", dest: "fabric_template_pod_ca.yaml" }
+    - { src: "fabric_template_pod_cli.yaml.j2", dest: "fabric_template_pod_cli.yaml" }
+    - { src: "fabric_template_pod_orderer.yaml.j2", dest: "fabric_template_pod_orderer.yaml" }
+    - { src: "fabric_template_pod_orderer_kafka.yaml.j2", dest: "fabric_template_pod_orderer_kafka.yaml" }
+    - { src: "fabric_template_pod_peer.yaml.j2", dest: "fabric_template_pod_peer.yaml" }
+
+- name: Generate kubernetes configuration
+  script: >
+    generate_k8s_configs.py {{ crpto_config_dir }} {{ templates_dir }}
+    {% if fabric_orderer_type == "kafka" %}--kafka{% endif %}
+  args:
+    executable: python3
+  register: generate_k8s_result
+
+# An in-memory variable containing all network ports of peers, ca and orderer NoePort services
+# This will be used to setup a test channel and create network config for Metrics framework
+# TODO: If required, Store this in a file so that it can used by other playbooks as well
+- name: Set exposed NodePort service ports in facts
+  set_fact: node_port_mapping={{ generate_k8s_result.stdout }}
+
+- name: Set owner and permission for kubernetes templates
+  file:
+    name: "{{ templates_dir }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: 0774
+
+# ########################################
+# Example value to node_port_mapping #####
+#"node_port_mapping = {'ca.org2': {'7054': 30100}, 'peer0.org2': {'7051': 30101, '7052': 30102, '7053': 30103},
+#'peer0.org1': {'7051': 30001, '7052': 30002, '7053': 30003}, 'ca.org1': {'7054': 30000},
+#'orderer0.orgorderer1': {'7050': 32000}, 'peer1.org1': {'7051': 30004, '7052': 30005, '7053': 30006},
+#'peer1.org2': {'7051': 30104, '7052': 30105, '7053': 30106}}"
+# ########################################
